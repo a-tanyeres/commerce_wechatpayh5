@@ -1,0 +1,7 @@
+name = Commerce Wechat Pay H5
+description = Integrate functionality of payment through wechat in mobile in ecommerce on every mobile browser
+dependencies[] = commerce
+core = 7.x
+
+; NEW LINE
+configure = admin/config/commerce_wechatpayh5/config
