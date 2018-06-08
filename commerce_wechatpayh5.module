@@ -2,218 +2,72 @@
 
 require_once "lib/WxPay.Api.php";
 
-/**
- * Implements hook_menu().
- */
-function commerce_wechatpayh5_menu() {
+function commerce_wechatpayh5_form($form, &$form_state) {
 
-    $items['admin/config/commerce_wechatpayh5/config'] = array(
-      'title' => 'Wechat Pay H5',
-      'description' => 'Configuration module page',
-      'page callback'    => 'drupal_get_form',
-      'page arguments'   => ['commerce_wechatpayh5_settings_form'],
-      'access callback' => TRUE,
-      'access arguments' => ['access adminstration page'],
-      'type' => MENU_CALLBACK,
-    );
-  
-    return $items;
-  }
-
-/**
- * Implements hook_commerce_payment_method_info().
- */
-function commerce_wechatpayh5_payment_method_info() {
-    $payment_methods = array();
-
-    $payment_methods['weixinpay'] = array(
-      'base' => 'commerce_wechatpayh5',
-      'title' => t('WeixinPayH5'),
-      'terminal' => FALSE,
-      'offsite' => TRUE,
-      'offsite_autoredirect' => TRUE,
-    );
-  
-    return $payment_methods;
-}
-
-/**
- * Menu callback function to process Alipay's feedback notifications.
- */
-function commerce_wechatpayh5_process_notify() {
-
-}
-
-/**
- * Payment method callback: settings form.
- */
-function commerce_wechatpayh5_settings_form($form, &$form_state) {
-
-    $url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]"."/";
-
-    $form['APPID'] = array(
-        '#type' => 'textfield',
+    $form['appid_field'] = array(
         '#title' => t('APPID'),
-        '#description' => t('Write your <strong>APPID</strong>'),
-        '#default_value' => variable_get('APPID'),
-        '#required' => TRUE,
+        '#type' => 'input',
+        // '#value' => t(''),
+        '#description'=>t('Put your APPID'),
     );
-    $form['MCHID'] = array(
-        '#type' => 'textfield',
+
+    $form['mchid_field'] = array(
         '#title' => t('MCHID'),
-        '#description' => t('Write your <strong>MCHID</strong>'),
-        '#default_value' => variable_get('MCHID'),
-        '#required' => TRUE,
+        '#type' => 'input',
+        // '#value' => t(''),
+        '#description'=>t('Put your MCHID'),
     );
-    $form['KEY'] = array(
-        '#type' => 'textfield',
+
+    $form['key_field'] = array(
         '#title' => t('KEY'),
-        '#description' => t('Write your <strong>KEY</strong>'),
-        '#default_value' => variable_get('KEY'),
-        '#required' => TRUE,
+        '#type' => 'input',
+        // '#value' => t(''),
+        '#description'=>t('Put your KEY'),
     );
-    $form['APPSECRET'] = array(
-        '#type' => 'textfield',
+
+    $form['appsecret_field'] = array(
         '#title' => t('APPSECRET'),
-        '#description' => t('Write your <strong>APPSECRET</strong>'),
-        '#default_value' => variable_get('APPSECRET'),
-        '#required' => TRUE,
+        '#type' => 'input',
+        // '#value' => t(''),
+        '#description'=>t('Put your APPSECRET'),
     );
-    $form['NOTIFY_URL'] = array(
-        '#type' => 'textfield',
-        '#title' => t('NOTIFY_URL'),
-        '#description' => t("Write the path or your notify file: ".$url."<strong>".variable_get('NOTIFY_URL')."</strong>.</br> example: \"sites/all/modules/commerce_wechatpayh5/lib\""),
-        '#default_value' => variable_get('NOTIFY_URL'),
-        '#required' => TRUE,
+    
+    $form['submit_button'] = array(
+        '#title' => t('Need Street Field?'),
+        '#type' => 'submit',
+        '#value' => t('Click Here!'),
+        '#description'=>t(''),
     );
   
-  return system_settings_form($form);
+  return $form;
 }
 
-/**
- * Payment method callback: redirect form.
- *
- * Prepares the necessary data to be passed to Wechat with the redirection.
- */
-function commerce_wechatpayh5_redirect_form($form, &$form_state, $order, $payment_method) {
-
-}
-
-function commerce_wechatpayh5_form_validate($form, &$form_state) {
-
-}
-
-function commerce_wechatpayh5_form_submit($form, &$form_state) {
-
-}
-
-/*
-** Weixin pay functions
-*/
-function commerce_wechatpayh5_unifiedOrder($trade_no, $total_fee, $body) {
+public function commerce_wechatpayh5_redirect($trade_no, $total_fee, $body) {
+    
+    var $wxparams;
     
     $wxparams = new WxPayUnifiedOrder();
-    
     $wxparams->SetTrade_type('MWEB');
     $wxparams->SetBody($body);
     $wxparams->SetOut_trade_no($trade_no);
     $wxparams->SetTotal_fee($total_fee);
         
-    $result = WxPayApi::unifiedOrder($wxparams);
+    $result = WxPayApi::unifiedOrder($this->wxparams);
 
-    // header('Location: '.$result['mweb_url']);
-    return $result;
+    header('Location: '.$result['mweb_url']);
 }
 
-function commerce_wechatpayh5_orderQuery($out_trade_no) {
+public function commerce_wechatpayh5_getlink($trade_no, $total_fee, $body) {
     
-    $wxparams = new WxPayOrderQuery();
-
-    // $wxparams->SetTransaction_id($out_trade_no);
-    $wxparams->SetOut_trade_no($out_trade_no);
-
-    $result = WxPayApi::orderQuery($wxparams);
-
-    return $result;
-}
-
-function commerce_wechatpayh5_closeOrder($out_trade_no) {
+    var $wxparams;
     
-    $wxparams = new WxPayCloseOrder();
-
-    $wxparams->SetOut_trade_no($out_trade_no);
-
-    $result = WxPayApi::closeOrder($wxparams);
-
-    return $result;
-}
-
-function commerce_wechatpayh5_refund($out_trade_no, $out_refund_no, $total_fee, $refund_fee, $op_user_id) {
-    
-    $wxparams = new WxPayRefund();
-
-    //Choose between transaction_id and out_trade_no
-    // $wxparams->SetTransaction_id($out_trade_no)
-    $wxparams->SetOut_trade_no($out_trade_no);
-    $wxparams->SetOut_refund_no($out_refund_no);
+    $wxparams = new WxPayUnifiedOrder();
+    $wxparams->SetTrade_type('MWEB');
+    $wxparams->SetBody($body);
+    $wxparams->SetOut_trade_no($trade_no);
     $wxparams->SetTotal_fee($total_fee);
-    $wxparams->SetRefund_fee($refund_fee);
-    $wxparams->SetOp_user_id($op_user_id);
+        
+    $result = WxPayApi::unifiedOrder($this->wxparams);
 
-    $result = WxPayApi::refund($wxparams);
-
-    return $result;
-}
-
-function commerce_wechatpayh5_refundQuery($out_trade_no) {
-    
-    $wxparams = new WxPayRefundQuery();
-
-    //Choose between transaction_id, out_trade_no, out_refund_no and refund_id
-    // $wxparams->SetTransaction_id($out_trade_no);
-    $wxparams->SetOut_trade_no($out_trade_no);
-    // $wxparams->SetOut_refund_no($out_trade_no);
-    // $wxparams->SetRefund_id($out_trade_no);
-
-    $result = WxPayApi::refundQuery($wxparams);
-
-    return $result;
-}
-
-function commerce_wechatpayh5_downloadBill($bill_date) {
-    
-    $wxparams = new WxPayDownloadBill();
-
-    $wxparams->SetBill_date($bill_date);
-
-    $result = WxPayApi::downloadBill($wxparams);
-
-    return $result;
-}
-
-// function commerce_wechatpayh5_micropay() {
-//     $wxparams = new WxPayWxPayMicroPay();
-
-//     $result = WxPayApi::micropay($wxparams);
-// }
-
-// function commerce_wechatpayh5_reverse() {
-//     $wxparams = new WxPayReverse();
-
-//     $result = WxPayApi::reverse($wxparams);
-// }
-
-function commerce_wechatpayh5_report($sub_mch_id, $interface_url, $execute_time, $return_code, $result_code) {
-    
-    $wxparams = new WxPayReport();
-
-    $wxparams->SetSub_mch_id($sub_mch_id);
-    $wxparams->SetInterface_url($interface_url);
-    $wxparams->SetExecute_time($execute_time);
-    $wxparams->SetReturn_code($return_code);
-    $wxparams->SetResult_code($result_code);
-
-    $result = WxPayApi::report($wxparams);
-
-    return $result;
+    return $result['mweb_url'];
 }
