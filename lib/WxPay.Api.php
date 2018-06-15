@@ -45,9 +45,10 @@ class WxPayApi
 		
 		//异步通知url未设置，则使用配置文件中的url
 		if(!$inputObj->IsNotify_urlSet()){
-			$urls = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]"."/";
-			$inputObj->SetNotify_url($urls.variable_get('NOTIFY_URL'));//异步通知url
+			$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]"."/";
+			$inputObj->SetNotify_url($url.'notify-payh5');
 		}
+		
 		
 		$inputObj->SetAppid(variable_get('APPID'));//公众账号ID
 		$inputObj->SetMch_id(variable_get('MCHID'));//商户号
@@ -432,7 +433,7 @@ class WxPayApi
 	 */
 	public static function getNonceStr($length = 32) 
 	{
-		$chars = "abcdefghijklmnopqrstuvwxyz0123456789";  
+		$chars = "abcdefghijklmnopqrstuvwxyz0123456789";
 		$str ="";
 		for ( $i = 0; $i < $length; $i++ )  {  
 			$str .= substr($chars, mt_rand(0, strlen($chars)-1), 1);  

@@ -23,11 +23,12 @@ class WxPayConfig
 	 * @var string
 	 */
 
-	const APPID = '';
-	const MCHID = '';
-	const KEY = '';
-	const APPSECRET = '';
-	const NOTIFY_URL = '';
+	const APPID = '';//wx59e4ec7138c512f2
+	const MCHID = '';//1227227802
+	const KEY = '';//VRDDDCKuZ1BeDsYCVxLNYfYLk2izAhyK
+	const APPSECRET = '';//c1b4f25ce6738cc2496b8a23c6345e6c
+
+
 	
 	//=======【证书路径设置】=====================================
 	/**
