@@ -13,7 +13,6 @@ function commerce_wechatpayh5_menu() {
         'access arguments' => ['access adminstration page'],
         'type' => MENU_CALLBACK,
     );
-    
     $items['commerce_wechatpayh5/%/notify-payh5'] = array(
         'title' => 'notify callback pay',
         'page callback' => 'commerce_wechatpayh5_notify',
@@ -149,10 +148,9 @@ function commerce_wechatpayh5_notify($value) {
     echo '<p style="font-size: 40px"> PAY </p>';
     echo '</div>';
     echo '</a>';
-
     echo '<form id="wechatForm" method="POST" action="'.$base_url.'/commerce_wechatpayh5/order-complete">';
     echo '<input type="hidden" value="'.$order->order_number.'" id="outtradeno" name ="out_trade_no"/>';
-    // <input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
+    // echo '<input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
     echo '<input type="hidden" value="true" name ="orderstatus" id="status"/>';
     echo '<input type="submit" value="Continue" id="wechatsubmit" style="display: none;"/>';
     echo '</form>';
@@ -179,13 +177,13 @@ function commerce_wechatpayh5_order_complete() {
 /*
 ** Weixin pay functions
 */
-function commerce_wechatpayh5_unifiedOrder($trade_no, $total_fee, $body) {
+function commerce_wechatpayh5_unifiedOrder($out_trade_no, $total_fee, $body) {
     require_once "lib/WxPay.Api.php";
     $wxparams = new WxPayUnifiedOrder();
 
     $wxparams->SetTrade_type('MWEB');
     $wxparams->SetBody($body);
-    $wxparams->SetOut_trade_no($trade_no);
+    $wxparams->SetOut_trade_no($out_trade_no);
     // $wxparams->SetTotal_fee($total_fee);
     $wxparams->SetTotal_fee('1');
 
