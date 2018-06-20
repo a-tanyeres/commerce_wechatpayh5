@@ -7,8 +7,8 @@ function commerce_wechatpayh5_menu() {
     $items['admin/config/commerce_wechatpayh5/config'] = array(
         'title' => 'Wechat Pay H5',
         'description' => 'Configuration module page',
-        'page callback'    => 'drupal_get_form',
-        'page arguments'   => ['commerce_wechatpayh5_settings_form'],
+        'page callback' => 'drupal_get_form',
+        'page arguments' => ['commerce_wechatpayh5_settings_form'],
         'access callback' => TRUE,
         'access arguments' => ['access adminstration page'],
         'type' => MENU_CALLBACK,
@@ -42,7 +42,7 @@ function commerce_wechatpayh5_menu() {
 function commerce_wechatpayh5_commerce_payment_method_info() {
     $payment_methods = array();
   
-    $payment_methods['wechatpayh5_unifiedOrder'] = array(
+    $payment_methods['commerce_wechatpayh5'] = array(
         'base' => 'commerce_wechatpayh5',
         'title' => t('Wechat H5'),
         'short_title' => t('Unified Order'),
@@ -126,6 +126,12 @@ function commerce_wechatpayh5_settings_form($form, &$form_state) {
         '#default_value' => variable_get('APPSECRET'),
         '#required' => TRUE,
     );
+    $form['DEVMODE'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('DEVMODE'),
+        '#description' => t('Put the fee to <strong>00,01¥</strong>, for testing.'),
+        '#default_value' => variable_get('DEVMODE'),
+    );
   
   return system_settings_form($form);
 }
@@ -134,28 +140,45 @@ function commerce_wechatpayh5_notify($value) {
     global $base_url;
     $id = arg(1);
     $order = commerce_order_load($id);
-    $url = commerce_wechatpayh5_unifiedOrder($order->order_number, $order->commerce_order_total['und'][0]['amount'], 'This is a test payement');
+    $fee = $order->commerce_order_total['und'][0]['amount'];
+    $url = commerce_wechatpayh5_unifiedOrder($order->order_number, $fee, 'Your order n° '.$order->order_number.'.');
+    $fee = intval($fee)/100;
     
     $path = drupal_get_path('module', 'commerce_wechatpayh5');
     drupal_add_js($path . '/js/commerce_wechatpayh5.js');
-    // sleep(10);
 
-    echo '<script src="'.$base_url.'/sites/all/modules/contrib/jquery_update/replace/jquery/1.10/jquery.min.js"></script>';
-    echo '<script src="'.$base_url.'/'.$path.'/js/commerce_wechatpayh5.js"></script>';
-    echo '<body>';
-    echo '<a href="'.$url.'" id="openpay" style="color:white">';
-    echo '<div style="height: 100px; width: 250px; background-color: #00c80f; text-align: center; vertical-align: middle;">';
-    echo '<p style="font-size: 40px"> PAY </p>';
-    echo '</div>';
-    echo '</a>';
-    echo '<form id="wechatForm" method="POST" action="'.$base_url.'/commerce_wechatpayh5/order-complete">';
-    echo '<input type="hidden" value="'.$order->order_number.'" id="outtradeno" name ="out_trade_no"/>';
-    // echo '<input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
-    echo '<input type="hidden" value="true" name ="orderstatus" id="status"/>';
-    echo '<input type="submit" value="Continue" id="wechatsubmit" style="display: none;"/>';
-    echo '</form>';
-    echo '</body>';
-    // drupal_goto($url);
+echo '<script src="'.$base_url.'/sites/all/modules/contrib/jquery_update/replace/jquery/1.10/jquery.min.js"></script>';
+echo '<script src="'.$base_url.'/'.$path.'/js/commerce_wechatpayh5.js"></script>';
+echo '<body>';
+
+echo '<div style="width: 100%; height: 300px;">';
+echo '<div style="height: 150px;"></div>';
+echo '<div style="margin: auto; text-align: center">';
+echo '<h2 style="font-family: Arial; font-size: 70; color: white">Order n° '.$order->order_number.'</h2>';
+echo '<h1 style="font-family: Arial; font-size: 60; color: white">total : '.$fee.' ¥</h1>';
+echo '</div>';
+echo '<div style="height: 150px;"></div>';
+echo '<a href="'.$url.'" id="openpay" style="color: white; text-decoration: none;">';
+echo '<div style="vertical-align: middle; margin: auto; height: 200px; width: 500px; background-color: #00c80f; text-align: center;">';
+echo '<p style="font-family: Arial; font-size: 60;">';
+//echo '<image src="https://cdn-www.bluestacks.com/bs-images/wechat_logo.png" style="width: 150px; height: 150px;"></image>';
+echo ' PAY </p>';
+echo '</div>';
+echo '</a>';
+echo '<div style="height: 490px;"></div>';
+echo '<div style="text-align: center">';
+echo '<a href="'.$base_url.'" style="font-family: Arial; text-decoration: none; text-decoration-color: red"><p style="font-size: 47; color: red;">Cancel</p></a>';
+echo '</div>';
+echo '</div>';
+
+echo '<form id="wechatForm" method="POST" action="'.$base_url.'/commerce_wechatpayh5/order-complete">';
+echo '<input type="hidden" value="'.$order->order_number.'" id="outtradeno" name ="out_trade_no"/>';
+echo '<input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
+echo '<input type="hidden" value="true" name ="orderstatus" id="status"/>';
+echo '<input type="submit" value="Continue" id="wechatsubmit" style="display: none;"/>';
+echo '</form>';
+echo '</body>';
+
 }
 
 function commerce_wechatpayh5_status() {
@@ -169,9 +192,79 @@ function commerce_wechatpayh5_status() {
 }
 
 function commerce_wechatpayh5_order_complete() {
-    $order_id = $_POST['orderid'];
-    drupal_goto('checkout/'.$order_id.'/complete');
-    echo 'PAID';
+    if (empty($_POST)) {
+        watchdog('My Payment Gateway',
+        'Received an empty or incomplete response.  Response details: @request_details',
+        array('@request_details' =>  print_r($_POST,true)), WATCHDOG_ERROR);
+    
+        return 'There was a problem with your payment';
+    }
+    
+    if ($_POST['orderstatus'] == 'true') {
+        global $user;
+        $order_id = $_POST['orderid'];
+        $order = commerce_order_load($order_id);
+        $amount = $order->commerce_order_total['und'][0]['amount'];
+        $order->field_order_total['und'][0]['value'] = $amount/100;
+        $tid = $order->field_checkout_delivery_time[LANGUAGE_NONE][0]['tid'];
+        $last_delivery_time = db_query("SELECT name FROM {taxonomy_term_data} WHERE tid= :tid",array('tid' => $tid))->fetchField();
+        $deliverydate = db_query("SELECT date FROM {delivery_date} WHERE order_id= :order_id",array('order_id' => $order->order_id))->fetchField();
+        $lasttime = explode('-',$last_delivery_time);
+        $lasttime1 = explode('.',$lasttime[0]);
+        $seafooddate = date('Y-m-d',strtotime($deliverydate));
+        $order->field_delivery_date_and_time[LANGUAGE_NONE][0]['value'] = $seafooddate.' '.$lasttime1[0].':00:00';
+        
+        commerce_order_save($order);
+        if($_GET['admin'] == 1) {
+            $status = 'completed_in_full';
+        } else {
+            $status = 'confirmed_completed';
+        }
+        commerce_order_status_update($order,$status);
+        $transaction = commerce_payment_transaction_new('commerce_wechatpayh5', $order_id);
+        $transaction->instance_id = 'commerce_wechatpayh5|commerce_payment_commerce_wechatpayh5';
+    
+        // Currently supports only transactions in CNY.
+        $transaction->amount = commerce_currency_decimal_to_amount($order->commerce_order_total[LANGUAGE_NONE][0]['amount'], $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code']);
+        $transaction->currency_code = $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'];
+    
+        $transaction->remote_id = '';
+          
+        // Set the transaction's statuses based on notify's trade_status.          
+        $transaction->remote_status = 'True';          
+        $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+        $transaction->message = 'The payment has completed.';
+        //	print_r($transaction);
+        commerce_payment_transaction_save($transaction);
+        if ($_GET['admin'] == 1) {
+            $order =  commerce_order_load($order_id);
+        
+            if (isset($order->commerce_line_items) && count($order->commerce_line_items) > 0) {
+                $line_items = $order->commerce_line_items;
+        
+                foreach ($line_items['und'] as $key => $value) {
+                    $line_item = commerce_line_item_load($value['line_item_id']);
+                    if (isset($line_item->commerce_product)) {
+                        $productid = $line_item->commerce_product[LANGUAGE_NONE][0]['product_id'];
+    
+                        //print $productid.'=='.$order_id; //exit;
+                        db_insert('stock_order_data')
+                        ->fields(array(
+                            'product_id' => $productid,
+                            'order_id' => $order_id,
+                            ))
+                            ->execute();
+                        }
+                    }
+                }
+                echo 'order/complete/'.$order_id;
+                drupal_goto('order/complete/'.$order_id);
+            } else {
+                echo 'checkout/'.$order_id.'/complete';
+                drupal_goto('checkout/'.$order_id.'/complete');
+            }
+            //return t('Your Order '.$order_id.' has been successfully completed');
+        }
 }
 
 /*
@@ -184,8 +277,11 @@ function commerce_wechatpayh5_unifiedOrder($out_trade_no, $total_fee, $body) {
     $wxparams->SetTrade_type('MWEB');
     $wxparams->SetBody($body);
     $wxparams->SetOut_trade_no($out_trade_no);
-    // $wxparams->SetTotal_fee($total_fee);
-    $wxparams->SetTotal_fee('1');
+    if (variable_get('DEVMODE') ==  1) {
+        $wxparams->SetTotal_fee('1');
+    } else {
+        $wxparams->SetTotal_fee($total_fee);
+    }
 
     $result = WxPayApi::unifiedOrder($wxparams);
 
