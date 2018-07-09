@@ -11,7 +11,7 @@ This module use [**Commerce wechat module**](https://www.drupal.org/project/comm
 This module have been made for the version **7.x** of drupal.
 
 ## Getting started
-#### installation
+#### Installation
 
 First you need to [download](https://github.com/a-tanyeres/commerce_wechatpayh5/archive/master.zip) this module then go to the **module** page on your Drupal website and click on `Install new module`.
 
@@ -31,7 +31,7 @@ You can find these informations on your [wechat backend](https://pay.weixin.qq.c
 
 The module react like an offsite payment, but he it's not really the case, the payement open the **wechat app** above the mobile browser, the **wechat app** is so needed to pay with it.
 
-_Modify the logo by putting your image in the folder `/commerce_wechatpayh5/assets` and call it `logo.png`_
+_Modify the logo by putting your image in the folder `/commerce_wechatpayh5/assets` and call it `logo.png` (replace the older one)_
 
 _At your first use you can testing the module by checking the **dev mode** in the `configure` page, this option put the fee to **00,01 yuan**, who is the minimum fee that wechat accept._
 
