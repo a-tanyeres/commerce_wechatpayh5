@@ -68,8 +68,10 @@ function commerce_wechatpayh5_redirect_form($form, &$form_state, $order, $paymen
 }
 
 function commerce_wechatpayh5_order_form($form, &$form_state, $order, $settings) {
+    global $language;
+
     $url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]"."/";
-    $form['#action'] = $url.'commerce_wechatpayh5/'.$order->order_number.'/notify-payh5';
+    $form['#action'] = $url.$language->prefix.'/commerce_wechatpayh5/'.$order->order_number.'/notify-payh5';
     // $form['#action'] = commerce_wechatpayh5_unifiedOrder($order->order_number, $order->commerce_order_total['und'][0]['amount'], 'This is a test payement');
     
     $form['submit'] = array(
@@ -146,37 +148,59 @@ function commerce_wechatpayh5_notify($value) {
     
     $path = drupal_get_path('module', 'commerce_wechatpayh5');
     drupal_add_js($path . '/js/commerce_wechatpayh5.js');
+    global $language;
+
+    if($language->language == 'zh-hans'){
+        $strordern = '订单编: ';
+        $strtotal = '总金额: ';
+        $strpay = '用微信支付';
+        $strbackhome = '返回主页';
+        $lang = '/cn';
+        $cont = '继续';
+        $compl = '订单已完成';
+    } else {
+        $strordern = 'Order n° ';
+        $strtotal = 'total: ';
+        $strpay = 'Pay with wechat';
+        $strbackhome = 'Back on homepage';
+        $lang = '/en';
+        $cont = 'Continue';
+        $compl = 'Order completed';
+    }
 
 echo '<script src="'.$base_url.'/sites/all/modules/contrib/jquery_update/replace/jquery/1.10/jquery.min.js"></script>';
-echo '<script src="'.$base_url.'/'.$path.'/js/commerce_wechatpayh5.js"></script>';
+echo '<script src="/'.$path.'/js/commerce_wechatpayh5.js"></script>';
 echo '<body>';
 
-echo '<div style="width: 100%; height: 300px;">';
-echo '<div style="height: 150px;"></div>';
+echo '<div style="width: 100%;">';
+// echo '<input name ="test" id="test"/>';
+echo '<div style="height: 200px;"></div>';
 echo '<div style="margin: auto; text-align: center">';
-echo '<h2 style="font-family: Arial; font-size: 70; color: white">Order n° '.$order->order_number.'</h2>';
-echo '<h1 style="font-family: Arial; font-size: 60; color: white">total : '.$fee.' ¥</h1>';
+echo '<image src="'.$base_url.'/'.$path.'/assets/logo.png" style="height: 80px;"></image>';
+echo '<div style="height: 125px;"></div>';
+echo '<h1 id="suctext" style="display: none; font-family: Arial; font-size: 50; color: #00c80f">'.$compl.'</h1>';
+echo '<h2 style="font-family: Arial; font-size: 45; color: black">'.$strordern.$order->order_number.'</h2>';
+echo '<h1 style="font-family: Arial; font-size: 40; color: grey">'.$strtotal.$fee.'¥</h1>';
 echo '</div>';
-echo '<div style="height: 150px;"></div>';
-echo '<a href="'.$url.'" id="openpay" style="color: white; text-decoration: none;">';
-echo '<div style="vertical-align: middle; margin: auto; height: 200px; width: 500px; background-color: #00c80f; text-align: center;">';
-echo '<p style="font-family: Arial; font-size: 60;">';
-//echo '<image src="https://cdn-www.bluestacks.com/bs-images/wechat_logo.png" style="width: 150px; height: 150px;"></image>';
-echo ' PAY </p>';
-echo '</div>';
-echo '</a>';
-echo '<div style="height: 490px;"></div>';
-echo '<div style="text-align: center">';
-echo '<a href="'.$base_url.'" style="font-family: Arial; text-decoration: none; text-decoration-color: red"><p style="font-size: 47; color: red;">Cancel</p></a>';
-echo '</div>';
-echo '</div>';
+echo '<div style="height: 75px;"></div>';
 
-echo '<form id="wechatForm" method="POST" action="'.$base_url.'/commerce_wechatpayh5/order-complete">';
+echo '<form id="wechatForm" method="POST" action="'.$base_url.$lang.'/commerce_wechatpayh5/order-complete">';
 echo '<input type="hidden" value="'.$order->order_number.'" id="outtradeno" name ="out_trade_no"/>';
 echo '<input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
 echo '<input type="hidden" value="true" name ="orderstatus" id="status"/>';
-echo '<input type="submit" value="Continue" id="wechatsubmit" style="display: none;"/>';
+echo '<input type="submit" value="'.$cont.'" id="wechatsubmit" style="display: none;border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: #00c80f;text-align: center;font-size: 3em;color: #fff;padding: 10px 0px;line-height: 1.7em;font-family: Arial;"/>';
 echo '</form>';
+
+echo '<a href="'.$url.'" id="openpay" style="color: white; text-decoration: none;">';
+echo '<span style="border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: #00c80f;text-align: center;font-size: 3em;display: block;color: #fff;padding: 10px 0px;line-height: 1.7em;font-family: Arial;">'.$strpay.'</span>';
+echo '</a>';
+echo '<div style="height: 50px;"></div>';
+
+// echo '<a href="'.$base_url.'" style="color: black; text-decoration: none;">';
+// echo '<span style="border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: white;text-align: center;font-size: 3em;display: block;color: black;padding: 10px 0px;line-height: 1.7em;font-family: Arial;">'.$strbackhome.'</span>';
+// echo '</a>';
+
+echo '</div>';
 echo '</body>';
 
 }
@@ -201,9 +225,18 @@ function commerce_wechatpayh5_order_complete() {
     }
     
     if ($_POST['orderstatus'] == 'true') {
+        global $base_url;
+        global $language;
         global $user;
         $order_id = $_POST['orderid'];
         $order = commerce_order_load($order_id);
+        if ($order->status == 'confirmed_completed') {
+            if($language->language == 'zh-hans'){
+                drupal_goto($base_url.'/cn/checkout/'.$order_id.'/complete');
+            } else {
+                drupal_goto($base_url.'/checkout/'.$order_id.'/complete');      
+            }
+        }
         $amount = $order->commerce_order_total['und'][0]['amount'];
         $order->field_order_total['und'][0]['value'] = $amount/100;
         $tid = $order->field_checkout_delivery_time[LANGUAGE_NONE][0]['tid'];
@@ -258,10 +291,20 @@ function commerce_wechatpayh5_order_complete() {
                     }
                 }
                 echo 'order/complete/'.$order_id;
-                drupal_goto('order/complete/'.$order_id);
+                if($language->language == 'zh-hans'){
+                    drupal_goto($base_url.'/cn/order/complete/'.$order_id);
+                } else {
+                    drupal_goto($base_url.'/order/complete/'.$order_id);
+                }
+                
             } else {
                 echo 'checkout/'.$order_id.'/complete';
-                drupal_goto('checkout/'.$order_id.'/complete');
+                if($language->language == 'zh-hans'){
+                    drupal_goto($base_url.'/cn/checkout/'.$order_id.'/complete');
+                } else {
+                    drupal_goto($base_url.'/checkout/'.$order_id.'/complete');
+                }
+                
             }
             //return t('Your Order '.$order_id.' has been successfully completed');
         }

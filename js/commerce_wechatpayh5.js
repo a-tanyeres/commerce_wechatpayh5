@@ -1,9 +1,7 @@
 (function($) {
     $(document).ready(function(){
         var outtradeno = $("#outtradeno").val();
-        //alert(outtradeno);
-        $('body').css('background-color', 'rgb(51, 51, 51)');
-        // jQuery("#openpay").trigger("click");
+        // $('body').css('background-color', 'rgb(233, 150, 122)');
         wechat_payment_status(outtradeno);
     });
 })(jQuery);
@@ -16,14 +14,16 @@ function wechat_payment_status(outtradeno) {
         url: path,
         data: 'outtradeno='+outtradeno,
         success: function(msg) {
-            // alert(msg);
-            console.log('msg: ' + msg);
+            // console.log('msg: ' + msg);
             if (msg == "SUCCESS") {
-                jQuery("#wechatsubmit").trigger("click");
+                $("#suctext").css('display', 'contents');
+                $("#wechatsubmit").css('display', 'block');
+                $("#openpay").css('display', 'none');
+                $("#wechatsubmit").click();
             } else {
-                setTimeout(wechat_payment_status(outtradeno), 5000);
+               setTimeout(wechat_payment_status(outtradeno), 5000);
             }
         }
     });
-    console.log('}');
+    // console.log('}');
 }
