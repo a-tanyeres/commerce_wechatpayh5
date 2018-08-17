@@ -320,7 +320,7 @@ function commerce_wechatpayh5_save_transaction($order_id) {
     }
     $amount = $order->commerce_order_total['und'][0]['amount'];
     if (variable_get('DEVMODE') ==  1) {
-        $order->field_order_total['und'][0]['value'] = 00.1;
+        $order->field_order_total['und'][0]['value'] = 0.01;
     } else {
         $order->field_order_total['und'][0]['value'] = $amount/100;
     }
