@@ -32,6 +32,12 @@ function commerce_wechatpayh5_menu() {
         'access arguments' => array('access content'),
         'type' => MENU_CALLBACK,
     );
+    $items['commerce_wechatpayh5/wechatpay-cron-check'] = array(
+        'title' => 'CRON Check Paid Transation',
+        'page callback' => 'commerce_wechatpayh5_check',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
     
     return $items;
 }
@@ -82,24 +88,21 @@ function commerce_wechatpayh5_order_form($form, &$form_state, $order, $settings)
     return $form;
 }
 
-function  commerce_wechatpayh5_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
-
-}
-
-function commerce_wechatpayh5_form_commerce_checkout_form_alter(&$form, &$form_state) {
-
-}
-
-function commerce_wechatpayh5_process_notify() {
-
-}
-
 /**
  * Payment method callback: settings form.
  */
 function commerce_wechatpayh5_settings_form($form, &$form_state) {
-    $url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]"."/";
+    $cron_required =  ' ' . l(t('Requires cron to be configured.'), 'http://drupal.org/cron', array('attributes' => array('target' => '_new')));
+    $period = drupal_map_assoc(array(300, 600, 900, 1800, 3600, 10800, 43200, 86400), 'format_interval');
+    foreach ($period as &$p) {
+      $p = t('Every !p', array('!p' => $p));
+    }
+    $period = array(
+      SCHEDULE_NEVER => t('Off'),
+      0 => t('As often as possible'),
+    ) + $period;
 
+    $form['#submit'][] = 'commerce_wechatpayh5_settings_form_submit';
     $form['APPID'] = array(
         '#type' => 'textfield',
         '#title' => t('APPID'),
@@ -131,13 +134,22 @@ function commerce_wechatpayh5_settings_form($form, &$form_state) {
     $form['DEVMODE'] = array(
         '#type' => 'checkbox',
         '#title' => t('DEVMODE'),
-        '#description' => t('Put the fee to <strong>00,01¥</strong>, for testing.'),
+        '#description' => t('Put the fee to <strong>00,01¥</strong>, for testing'),
         '#default_value' => variable_get('DEVMODE'),
     );
-  
+    $form['CRONTIME'] = array(
+        '#type' => 'select',
+        '#title' => t('CRON SETTNGS'),
+        '#description' => t('Choose how often a check should be done periodically.') . $cron_required,
+        '#options' => $period,
+        '#default_value' => variable_get('CRONTIME'),
+    );
   return system_settings_form($form);
 }
 
+/*
+** View page who redirect to weixin pay
+*/
 function commerce_wechatpayh5_notify($value) {
     global $base_url;
     $id = arg(1);
@@ -168,53 +180,115 @@ function commerce_wechatpayh5_notify($value) {
         $compl = 'Order completed';
     }
 
-echo '<script src="'.$base_url.'/sites/all/modules/contrib/jquery_update/replace/jquery/1.10/jquery.min.js"></script>';
-echo '<script src="/'.$path.'/js/commerce_wechatpayh5.js"></script>';
-echo '<body>';
+    echo '<script src="'.$base_url.'/sites/all/modules/contrib/jquery_update/replace/jquery/1.10/jquery.min.js"></script>';
+    echo '<script src="/'.$path.'/js/commerce_wechatpayh5.js"></script>';
+    echo '<body>';
 
-echo '<div style="width: 100%;">';
-// echo '<input name ="test" id="test"/>';
-echo '<div style="height: 200px;"></div>';
-echo '<div style="margin: auto; text-align: center">';
-echo '<image src="'.$base_url.'/'.$path.'/assets/logo.png" style="height: 80px;"></image>';
-echo '<div style="height: 125px;"></div>';
-echo '<h1 id="suctext" style="display: none; font-family: Arial; font-size: 50; color: #00c80f">'.$compl.'</h1>';
-echo '<h2 style="font-family: Arial; font-size: 45; color: black">'.$strordern.$order->order_number.'</h2>';
-echo '<h1 style="font-family: Arial; font-size: 40; color: grey">'.$strtotal.$fee.'¥</h1>';
-echo '</div>';
-echo '<div style="height: 75px;"></div>';
+    echo '<div style="width: 100%;">';
+    // echo '<input name ="test" id="test"/>';
+    echo '<div style="height: 200px;"></div>';
+    echo '<div style="margin: auto; text-align: center">';
+    echo '<image src="'.$base_url.'/'.$path.'/assets/logo.png" style="height: 80px;"></image>';
+    echo '<div style="height: 125px;"></div>';
+    echo '<h1 id="suctext" style="display: none; font-family: Arial; font-size: 50; color: #00c80f">'.$compl.'</h1>';
+    echo '<h2 style="font-family: Arial; font-size: 45; color: black">'.$strordern.$order->order_number.'</h2>';
+    echo '<h1 style="font-family: Arial; font-size: 40; color: grey">'.$strtotal.$fee.'¥</h1>';
+    echo '</div>';
+    echo '<div style="height: 75px;"></div>';
 
-echo '<form id="wechatForm" method="POST" action="'.$base_url.$lang.'/commerce_wechatpayh5/order-complete">';
-echo '<input type="hidden" value="'.$order->order_number.'" id="outtradeno" name ="out_trade_no"/>';
-echo '<input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
-echo '<input type="hidden" value="true" name ="orderstatus" id="status"/>';
-echo '<input type="submit" value="'.$cont.'" id="wechatsubmit" style="display: none;border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: #00c80f;text-align: center;font-size: 3em;color: #fff;padding: 10px 0px;line-height: 1.7em;font-family: Arial;"/>';
-echo '</form>';
+    echo '<form id="wechatForm" method="POST" action="'.$base_url.$lang.'/commerce_wechatpayh5/order-complete">';
+    echo '<input type="hidden" value="'.$order->order_number.'" id="outtradeno" name ="out_trade_no"/>';
+    echo '<input type="hidden" value="'.$order->order_id.'" name ="orderid" id="orderid"/>';
+    echo '<input type="hidden" value="true" name ="orderstatus" id="status"/>';
+    echo '<input type="submit" value="'.$cont.'" id="wechatsubmit" style="display: none;border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: #00c80f;text-align: center;font-size: 3em;color: #fff;padding: 10px 0px;line-height: 1.7em;font-family: Arial;"/>';
+    echo '</form>';
 
-echo '<a href="'.$url.'" id="openpay" style="color: white; text-decoration: none;">';
-echo '<span style="border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: #00c80f;text-align: center;font-size: 3em;display: block;color: #fff;padding: 10px 0px;line-height: 1.7em;font-family: Arial;">'.$strpay.'</span>';
-echo '</a>';
-echo '<div style="height: 50px;"></div>';
+    echo '<a href="'.$url.'" id="openpay" style="color: white; text-decoration: none;">';
+    echo '<span style="border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: #00c80f;text-align: center;font-size: 3em;display: block;color: #fff;padding: 10px 0px;line-height: 1.7em;font-family: Arial;">'.$strpay.'</span>';
+    echo '</a>';
+    echo '<div style="height: 50px;"></div>';
 
-// echo '<a href="'.$base_url.'" style="color: black; text-decoration: none;">';
-// echo '<span style="border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: white;text-align: center;font-size: 3em;display: block;color: black;padding: 10px 0px;line-height: 1.7em;font-family: Arial;">'.$strbackhome.'</span>';
-// echo '</a>';
+    // echo '<a href="'.$base_url.'" style="color: black; text-decoration: none;">';
+    // echo '<span style="border-radius: 7px;border:1px solid grey;margin: auto;/* height: 100px; */width: 95%;background-color: white;text-align: center;font-size: 3em;display: block;color: black;padding: 10px 0px;line-height: 1.7em;font-family: Arial;">'.$strbackhome.'</span>';
+    // echo '</a>';
 
-echo '</div>';
-echo '</body>';
-
+    echo '</div>';
+    echo '</body>';
 }
 
+/*
+** Return status of the wechat command passed in POST
+*/
 function commerce_wechatpayh5_status() {
     $out_trade_no = $_POST['outtradeno'];
     $result = commerce_wechatpayh5_orderQuery($out_trade_no);
     if(isset($result['trade_state'])){
         print $result['trade_state'];
     } else {
-        print "false";
+        print "false <br/><br/>";
+        print_r($result);
     }
 }
 
+/*
+** Check all checkout_payment orders if they are paid on wechat
+*/
+function commerce_wechatpayh5_check($job) {
+    watchdog('Cron H5', 'Cron Job as been launched', array());
+    $time_selected = variable_get('CRONTIME');
+    $result = db_query('SELECT order_id FROM {commerce_order} WHERE status = :stt', array(':stt' => 'checkout_payment'));
+
+    foreach ($result as $record) {
+        $wx = commerce_wechatpayh5_orderQuery($line['order_id']);
+        if (isset($wx['trade_state'])) {
+            print_r($record->order_id."<br/>");
+            watchdog('Cron H5', 'The order n°@order have been modified', array('@order' =>  $record->order_id));
+            commerce_wechatpayh5_save_transaction($line['order_id']);
+        }
+    }
+}
+
+/*
+** Schedule a cron job, when setting form is submit
+*/
+function commerce_wechatpayh5_settings_form_submit($form, &$form_state) {
+    $period = $form_state['complete form']['CRONTIME']['#default_value'];
+    dpm($period);
+    $job = array(
+        'type' => 'WXH5',
+        'id' => 0101,
+        'period' => $period,
+        'periodic' => TRUE,
+        'scheduled' => TRUE,
+    );
+    if ($period == SCHEDULE_NEVER) {
+        JobScheduler::get('check_failed_orders')->remove($job);
+        watchdog('Cron H5', 'Cron job removed', array('@time' =>  $period));
+    } else {
+        $existing = JobScheduler::get('check_failed_orders')->check($job);
+        if (!$existing) {
+            JobScheduler::get('check_failed_orders')->set($job);
+            watchdog('Cron H5', 'Cron job scheduled: @time', array('@time' =>  $period));
+        } elseif ($existing['scheduled']) {
+            JobScheduler::get('check_failed_orders')->reschedule($existing);
+            watchdog('Cron H5', 'Cron job rescheduled: @time', array('@time' =>  $period));
+        }
+    }
+}
+
+/*
+** Hook job_scheduler
+*/
+function commerce_wechatpayh5_cron_job_scheduler_info() {
+    watchdog('Cron H5', 'Cron setup', array());
+    $schedulers = array();
+    $schedulers['check_failed_orders'] = array( 'worker callback' => 'commerce_wechatpayh5_check', );
+    return $schedulers;
+}
+
+/*
+** Check data on URL before save the transaction
+*/
 function commerce_wechatpayh5_order_complete() {
     if (empty($_POST)) {
         watchdog('My Payment Gateway',
@@ -223,91 +297,102 @@ function commerce_wechatpayh5_order_complete() {
     
         return 'There was a problem with your payment';
     }
-    
     if ($_POST['orderstatus'] == 'true') {
-        global $base_url;
-        global $language;
-        global $user;
-        $order_id = $_POST['orderid'];
-        $order = commerce_order_load($order_id);
-        if ($order->status == 'confirmed_completed') {
+        commerce_wechatpayh5_save_transaction($_POST['orderid']);
+    }
+}
+
+/*
+** Save the transaction
+*/
+function commerce_wechatpayh5_save_transaction($order_id) {
+    global $base_url;
+    global $language;
+    global $user;
+    $order_id = $_POST['orderid'];
+    $order = commerce_order_load($order_id);
+    if ($order->status == 'confirmed_completed') {
+        if($language->language == 'zh-hans'){
+            drupal_goto($base_url.'/cn/checkout/'.$order_id.'/complete');
+        } else {
+            drupal_goto($base_url.'/checkout/'.$order_id.'/complete');      
+        }
+    }
+    $amount = $order->commerce_order_total['und'][0]['amount'];
+    if (variable_get('DEVMODE') ==  1) {
+        $order->field_order_total['und'][0]['value'] = 00.1;
+    } else {
+        $order->field_order_total['und'][0]['value'] = $amount/100;
+    }
+    $tid = $order->field_checkout_delivery_time[LANGUAGE_NONE][0]['tid'];
+    $last_delivery_time = db_query("SELECT name FROM {taxonomy_term_data} WHERE tid= :tid",array('tid' => $tid))->fetchField();
+    $deliverydate = db_query("SELECT date FROM {delivery_date} WHERE order_id= :order_id",array('order_id' => $order->order_id))->fetchField();
+    $lasttime = explode('-',$last_delivery_time);
+    $lasttime1 = explode('.',$lasttime[0]);
+    $seafooddate = date('Y-m-d',strtotime($deliverydate));
+    $order->field_delivery_date_and_time[LANGUAGE_NONE][0]['value'] = $seafooddate.' '.$lasttime1[0].':00:00';
+    
+    commerce_order_save($order);
+    if($_GET['admin'] == 1) {
+        $status = 'completed_in_full';
+    } else {
+        $status = 'confirmed_completed';
+    }
+    commerce_order_status_update($order,$status);
+    $transaction = commerce_payment_transaction_new('commerce_wechatpayh5', $order_id);
+    $transaction->instance_id = 'commerce_wechatpayh5|commerce_payment_commerce_wechatpayh5';
+
+    // Currently supports only transactions in CNY.
+    $transaction->amount = commerce_currency_decimal_to_amount($order->commerce_order_total[LANGUAGE_NONE][0]['amount'], $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code']);
+    $transaction->currency_code = $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'];
+
+    $transaction->remote_id = '';
+      
+    // Set the transaction's statuses based on notify's trade_status.          
+    $transaction->remote_status = 'True';          
+    $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+    $transaction->message = 'The payment has completed.';
+    //	print_r($transaction);
+    commerce_payment_transaction_save($transaction);
+    if ($_GET['admin'] == 1) {
+        $order =  commerce_order_load($order_id);
+    
+        if (isset($order->commerce_line_items) && count($order->commerce_line_items) > 0) {
+            $line_items = $order->commerce_line_items;
+    
+            foreach ($line_items['und'] as $key => $value) {
+                $line_item = commerce_line_item_load($value['line_item_id']);
+                if (isset($line_item->commerce_product)) {
+                    $productid = $line_item->commerce_product[LANGUAGE_NONE][0]['product_id'];
+
+                    //print $productid.'=='.$order_id; //exit;
+                    db_insert('stock_order_data')
+                    ->fields(array(
+                        'product_id' => $productid,
+                        'order_id' => $order_id,
+                        ))
+                        ->execute();
+                    }
+                }
+            }
+            echo 'order/complete/'.$order_id;
+            if($language->language == 'zh-hans'){
+                drupal_goto($base_url.'/cn/order/complete/'.$order_id);
+            } else {
+                drupal_goto($base_url.'/order/complete/'.$order_id);
+            }
+            
+        } else {
+            echo 'checkout/'.$order_id.'/complete';
             if($language->language == 'zh-hans'){
                 drupal_goto($base_url.'/cn/checkout/'.$order_id.'/complete');
             } else {
-                drupal_goto($base_url.'/checkout/'.$order_id.'/complete');      
+                drupal_goto($base_url.'/checkout/'.$order_id.'/complete');
             }
+            
         }
-        $amount = $order->commerce_order_total['und'][0]['amount'];
-        $order->field_order_total['und'][0]['value'] = $amount/100;
-        $tid = $order->field_checkout_delivery_time[LANGUAGE_NONE][0]['tid'];
-        $last_delivery_time = db_query("SELECT name FROM {taxonomy_term_data} WHERE tid= :tid",array('tid' => $tid))->fetchField();
-        $deliverydate = db_query("SELECT date FROM {delivery_date} WHERE order_id= :order_id",array('order_id' => $order->order_id))->fetchField();
-        $lasttime = explode('-',$last_delivery_time);
-        $lasttime1 = explode('.',$lasttime[0]);
-        $seafooddate = date('Y-m-d',strtotime($deliverydate));
-        $order->field_delivery_date_and_time[LANGUAGE_NONE][0]['value'] = $seafooddate.' '.$lasttime1[0].':00:00';
-        
-        commerce_order_save($order);
-        if($_GET['admin'] == 1) {
-            $status = 'completed_in_full';
-        } else {
-            $status = 'confirmed_completed';
-        }
-        commerce_order_status_update($order,$status);
-        $transaction = commerce_payment_transaction_new('commerce_wechatpayh5', $order_id);
-        $transaction->instance_id = 'commerce_wechatpayh5|commerce_payment_commerce_wechatpayh5';
-    
-        // Currently supports only transactions in CNY.
-        $transaction->amount = commerce_currency_decimal_to_amount($order->commerce_order_total[LANGUAGE_NONE][0]['amount'], $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code']);
-        $transaction->currency_code = $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'];
-    
-        $transaction->remote_id = '';
-          
-        // Set the transaction's statuses based on notify's trade_status.          
-        $transaction->remote_status = 'True';          
-        $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
-        $transaction->message = 'The payment has completed.';
-        //	print_r($transaction);
-        commerce_payment_transaction_save($transaction);
-        if ($_GET['admin'] == 1) {
-            $order =  commerce_order_load($order_id);
-        
-            if (isset($order->commerce_line_items) && count($order->commerce_line_items) > 0) {
-                $line_items = $order->commerce_line_items;
-        
-                foreach ($line_items['und'] as $key => $value) {
-                    $line_item = commerce_line_item_load($value['line_item_id']);
-                    if (isset($line_item->commerce_product)) {
-                        $productid = $line_item->commerce_product[LANGUAGE_NONE][0]['product_id'];
-    
-                        //print $productid.'=='.$order_id; //exit;
-                        db_insert('stock_order_data')
-                        ->fields(array(
-                            'product_id' => $productid,
-                            'order_id' => $order_id,
-                            ))
-                            ->execute();
-                        }
-                    }
-                }
-                echo 'order/complete/'.$order_id;
-                if($language->language == 'zh-hans'){
-                    drupal_goto($base_url.'/cn/order/complete/'.$order_id);
-                } else {
-                    drupal_goto($base_url.'/order/complete/'.$order_id);
-                }
-                
-            } else {
-                echo 'checkout/'.$order_id.'/complete';
-                if($language->language == 'zh-hans'){
-                    drupal_goto($base_url.'/cn/checkout/'.$order_id.'/complete');
-                } else {
-                    drupal_goto($base_url.'/checkout/'.$order_id.'/complete');
-                }
-                
-            }
-            //return t('Your Order '.$order_id.' has been successfully completed');
-        }
+        //return t('Your Order '.$order_id.' has been successfully completed');
+    }
 }
 
 /*

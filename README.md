@@ -1,5 +1,3 @@
-![--](https://qpsoftware.net/sites/all/themes/consilium/logo.png)
-
 # Commerce wechat pay h5
 
 Commerce wechat pay H5 is a drupal module who allow you to pay with wechat on third party browser (ex: _chrome, safari, firefox..._)
@@ -37,6 +35,4 @@ _At your first use you can testing the module by checking the **dev mode** in th
 
 ## Credits
 
-commerce_wechatpayh5 was created and is maintained by [Alexandre Tanyeres](https://www.linkedin.com/in/alexandretanyeres/)
-
-<strong><a href="https://qpsoftware.net/" class="twitter-follow-button" data-show-count="false">Qpsoftware</a></strong>
+commerce_wechatpayh5 was created and is maintained by <strong>[Alexandre Tanyeres](https://www.linkedin.com/in/alexandretanyeres/)</strong>, you can contact me for any questions.
